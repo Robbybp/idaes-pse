@@ -45,6 +45,7 @@ if SolverFactory('ipopt').available():
 else:
     solver = None
 
+
 def make_model(horizon=6, ntfe=60, ntcp=2, 
         inlet_E=11.91, inlet_S=12.92, steady=False, bounds=False):
     time_set = [0, horizon]
@@ -106,8 +107,8 @@ def make_model(horizon=6, ntfe=60, ntcp=2,
     m.fs.mixer.E_inlet.conc_mol[:, 'Solvent'].fix(1.)
     m.fs.mixer.S_inlet.conc_mol[:, 'Solvent'].fix(1.)
     
-    m.fs.mixer.E_inlet.temperature.fix(290)
-    m.fs.mixer.S_inlet.temperature.fix(310)
+    m.fs.mixer.E_inlet.temperature.fix(310.0)
+    m.fs.mixer.S_inlet.temperature.fix(329.24)
 
     m.fs.inlet = Arc(source=m.fs.mixer.outlet, destination=m.fs.cstr.inlet)
 
@@ -141,6 +142,7 @@ def make_model(horizon=6, ntfe=60, ntcp=2,
             holdup[t, 'aq', 'C'].setub(5)
 
     return m
+
 
 if __name__ == '__main__':
     m_plant = make_model()
