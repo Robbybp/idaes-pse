@@ -243,8 +243,9 @@ class PlantDataManager(object):
             user_interested_states,
         )
 
+        self.inputs = self.plantblock.input_vars
         self.plant_vars_of_interest = (
-            self.plant_states_of_interest + self.plantblock.input_vars
+            self.plant_states_of_interest + self.inputs
         )
 
         self.plant_df = empty_dataframe_from_variables(
