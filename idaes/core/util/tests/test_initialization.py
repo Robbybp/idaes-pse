@@ -167,17 +167,24 @@ class EnzymeReactionParameterData(ReactionParameterBlock):
                                             ('R3', 'aq', 'P'): 1,
                                             ('R3', 'aq', 'Solvent'): 0}
 
-        self.act_energy = Param(self.rate_reaction_idx,
-                                initialize={'R1': 8.0e3,
-                                            'R2': 9.0e3,
-                                            'R3': 1.0e4},
-                                doc='Activation energy [kcal/kmol]')
+        self.act_energy = Param(
+            self.rate_reaction_idx,
+            initialize={
+                'R1': 8.0e3*pyunits.kcal/pyunits.kmol,
+                'R2': 9.0e3*pyunits.kcal/pyunits.kmol,
+                'R3': 1.0e4*pyunits.kcal/pyunits.kmol
+            },
+            doc='Activation energy [kcal/kmol]',
+        )
 
         self.gas_const = Param(initialize=1.987,
                                doc='Gas constant R [kcal/kmol/K]')
 
-        self.temperature_ref = Param(initialize=300.0,
-                                     doc='Reference temperature')
+        self.temperature_ref = Param(
+            initialize=300.0,
+            units=pyunits.K,
+            doc='Reference temperature',
+        )
 
         self.k_rxn = Param(
             self.rate_reaction_idx,
