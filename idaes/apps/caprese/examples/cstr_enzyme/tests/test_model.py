@@ -147,8 +147,6 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
         solve_strongly_connected_components(m, solver)
         solver.solve(m)
 
-        import pdb; pdb.set_trace()
-
 
 if __name__ == "__main__":
     unittest.main()
