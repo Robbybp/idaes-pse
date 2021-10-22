@@ -80,7 +80,7 @@ def make_model(horizon=6, ntfe=60, ntcp=2,
         'inlet_list': ['S_inlet', 'E_inlet']})
     # Allegedly the proper energy balance is being used...
 
-    m.fs.cstr.control_volume.heat[:].fix(0.0)
+    m.fs.cstr.control_volume.heat[:].fix(-3800.0/900.0/0.231)
 
     # Time discretization
     if not steady:
