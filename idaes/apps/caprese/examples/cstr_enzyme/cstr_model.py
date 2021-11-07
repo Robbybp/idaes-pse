@@ -80,12 +80,15 @@ def make_model(horizon=6, ntfe=60, ntcp=2,
         'inlet_list': ['S_inlet', 'E_inlet']})
     # Allegedly the proper energy balance is being used...
 
-    m.fs.cstr.control_volume.heat[:].fix(-3800.0/900.0/0.231)
-
     # Time discretization
     if not steady:
         disc = TransformationFactory('dae.collocation')
         disc.apply_to(m, wrt=m.fs.time, nfe=ntfe, ncp=ntcp, scheme='LAGRANGE-RADAU')
+
+    # Fix heat transfer DOF
+    # Needs to be done after discretization
+    m.fs.cstr.control_volume.heat[:].fix(-3800.0/900.0/0.231)
+    m.fs.cstr.heat_duty[:].fix()
 
     # Fix geometry variables
     m.fs.cstr.volume[0].fix(1.0)
