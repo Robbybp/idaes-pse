@@ -157,6 +157,9 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
         solve_strongly_connected_components(m, solver)
         solver.solve(m)
 
+        from pyomo.util.check_units import assert_units_consistent
+        assert_units_consistent(m)
+
         with open("_newsol", "w") as fp:
             for var in m.component_data_objects(pyo.Var):
                 fp.write(
