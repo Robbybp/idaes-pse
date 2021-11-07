@@ -116,27 +116,37 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
     def test_default_steady_state(self):
         m = make_model(steady=True)
 
+        m3min = pyo.units.m**3/pyo.units.min
+        kmolm3 = pyo.units.kmol/pyo.units.m**3
+        K = pyo.units.K
         input_values = {
-            "fs.mixer.S_inlet_state[0].flow_vol": 2.1,
-            "fs.mixer.S_inlet_state[0].conc_mol[C]": 0.0,
-            "fs.mixer.S_inlet_state[0].conc_mol[E]": 0.0,
-            "fs.mixer.S_inlet_state[0].conc_mol[S]": 12.92,
-            "fs.mixer.S_inlet_state[0].conc_mol[P]": 0.0,
+            "fs.mixer.S_inlet_state[0].flow_vol": 2.1*m3min,
+            "fs.mixer.S_inlet_state[0].conc_mol[C]": 0.0*kmolm3,
+            "fs.mixer.S_inlet_state[0].conc_mol[E]": 0.0*kmolm3,
+            "fs.mixer.S_inlet_state[0].conc_mol[S]": 12.92*kmolm3,
+            "fs.mixer.S_inlet_state[0].conc_mol[P]": 0.0*kmolm3,
             "fs.mixer.S_inlet_state[0].conc_mol[Solvent]": 1.0,
-            "fs.mixer.S_inlet_state[0].temperature": 329.24,
-            "fs.mixer.E_inlet_state[0].flow_vol": 0.1,
-            "fs.mixer.E_inlet_state[0].conc_mol[C]": 0.0,
-            "fs.mixer.E_inlet_state[0].conc_mol[E]": 11.91,
-            "fs.mixer.E_inlet_state[0].conc_mol[S]": 0.0,
-            "fs.mixer.E_inlet_state[0].conc_mol[P]": 0.0,
+            "fs.mixer.S_inlet_state[0].temperature": 329.24*K,
+            "fs.mixer.E_inlet_state[0].flow_vol": 0.1*m3min,
+            "fs.mixer.E_inlet_state[0].conc_mol[C]": 0.0*kmolm3,
+            "fs.mixer.E_inlet_state[0].conc_mol[E]": 11.91*kmolm3,
+            "fs.mixer.E_inlet_state[0].conc_mol[S]": 0.0*kmolm3,
+            "fs.mixer.E_inlet_state[0].conc_mol[P]": 0.0*kmolm3,
             "fs.mixer.E_inlet_state[0].conc_mol[Solvent]": 1.0,
-            "fs.mixer.E_inlet_state[0].temperature": 310.0,
+            "fs.mixer.E_inlet_state[0].temperature": 310.0*K,
         }
         self.assertEqual(set(input_values), set(INPUTS))
         for name, val in input_values.items():
+            # Here we assert that the above inputs are valid in our
+            # model, and that these are their default values
             var = m.find_component(name)
             self.assertFalse(var is None)
-            self.assertEqual(var.value, val)
+            self.assertEqual(var.value, pyo.value(val))
+            # This check fails as my variables don't have units
+            #self.assertEqual(
+            #    var.get_units().to_string(),
+            #    pyo.units.get_units(val).to_string()
+            #)
 
         # These default conditions, with default initialization, are a great
         # example of a solve that converges when decomposed by SCC, but
@@ -147,6 +157,19 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
         solve_strongly_connected_components(m, solver)
         solver.solve(m)
 
+        with open("_newsol", "w") as fp:
+            for var in m.component_data_objects(pyo.Var):
+                fp.write(
+                    var.name
+                    + " %s"%(
+                        var.value * var.get_units() 
+                        if var.get_units() is not None
+                        else var.value
+                    )
+                    + "\n"
+                )
+
 
 if __name__ == "__main__":
-    unittest.main()
+    #unittest.main()
+    TestEnzymeCSTRModelSteadyState().test_default_steady_state()
