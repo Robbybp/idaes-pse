@@ -34,6 +34,7 @@ from idaes.core import (FlowsheetBlock,
                         MaterialFlowBasis,
                         Component,
                         Phase)
+from idaes.core.util.constants import Constants
 from idaes.core.util.testing import PhysicalParameterTestBlock
 from idaes.core.util.model_statistics import degrees_of_freedom
 from idaes.generic_models.unit_models import CSTR
@@ -74,11 +75,13 @@ class ParameterData(PhysicalParameterBlock):
 
     @classmethod
     def define_metadata(cls, obj):
-        obj.add_default_units({'time': pyunits.minute,
-                               'length': pyunits.m,
-                               'amount': pyunits.kmol,
-                               'temperature': pyunits.K,
-                               'mass': pyunits.kg})
+        obj.add_default_units({
+            'time': pyunits.minute,
+            'length': pyunits.m,
+            'amount': pyunits.kmol,
+            'temperature': pyunits.K,
+            'mass': pyunits.kg,
+        })
 
 
 class _AqueousEnzymeStateBlock(StateBlock):
@@ -92,19 +95,36 @@ class AqueousEnzymeStateBlockData(StateBlockData):
     def build(self):
         super(AqueousEnzymeStateBlockData, self).build()
 
-        self.conc_mol = Var(self._params.component_list,
-                            domain=Reals,
-                            doc='Component molar concentration [kmol/m^3]')
+        self.conc_mol = Var(
+            self._params.component_list,
+            domain=Reals,
+            doc='Component molar concentration [kmol/m^3]',
+            units=pyunits.kmol/pyunits.m**3,
+            # TODO: I don't really want solvent to have units
+            # of kmol/m**3...
+            # => I should make solvent "concentration" its own variable...
+            # Or really, find a different way to implement my "volume balance"
+        )
 
-        self.flow_mol_comp = Var(self._params.component_list,
-                                 domain=Reals,
-                                 doc='Molar component flow rate [kmol/min]')
+        self.flow_mol_comp = Var(
+            self._params.component_list,
+            domain=Reals,
+            doc='Molar component flow rate [kmol/min]',
+            units=pyunits.kmol/pyunits.min,
+        )
 
         self.flow_vol = Var(
-            domain=Reals, doc='Volumetric flow rate out of reactor [m^3/min]')
+            domain=Reals,
+            doc='Volumetric flow rate out of reactor [m^3/min]',
+            units=pyunits.m**3/pyunits.min,
+        )
 
-        self.temperature = Var(initialize=303, domain=Reals,
-                               doc='Temperature within reactor [K]')
+        self.temperature = Var(
+            initialize=303,
+            domain=Reals,
+            doc='Temperature within reactor [K]',
+            units=pyunits.K,
+        )
 
         if not self.config.defined_state:
             self.conc_mol['Solvent'].fix(1.)
@@ -115,7 +135,9 @@ class AqueousEnzymeStateBlockData(StateBlockData):
         self.flow_mol_comp_eqn = Constraint(
             self._params.component_list,
             rule=flow_mol_comp_rule,
-            doc='Outlet component molar flow rate equation')
+            doc='Outlet component molar flow rate equation',
+            # Do constraints have units?
+        )
 
     def get_material_density_terms(b, p, j):
         return b.conc_mol[j]
@@ -151,6 +173,7 @@ class EnzymeReactionParameterData(ReactionParameterBlock):
         self._reaction_block_class = EnzymeReactionBlock
 
         self.rate_reaction_idx = Set(initialize=['R1', 'R2', 'R3'])
+        # No units for stoichiometry constants. These are kmol/kmol.
         self.rate_reaction_stoichiometry = {('R1', 'aq', 'S'): -1,
                                             ('R1', 'aq', 'E'): -1,
                                             ('R1', 'aq', 'C'): 1,
@@ -177,8 +200,15 @@ class EnzymeReactionParameterData(ReactionParameterBlock):
             doc='Activation energy [kcal/kmol]',
         )
 
-        self.gas_const = Param(initialize=1.987,
-                               doc='Gas constant R [kcal/kmol/K]')
+        # TODO: What is the best place to convert these units?
+        # Is it a problem that gas_const here is an expression?
+        # This seems okay for now.
+        self.gas_const = pyunits.convert(
+            Constants.gas_constant,
+            pyunits.kcal/pyunits.kmol/pyunits.K,
+        )
+        #self.gas_const = Param(initialize=1.987,
+        #                       doc='Gas constant R [kcal/kmol/K]')
 
         self.temperature_ref = Param(
             initialize=300.0,
@@ -186,22 +216,28 @@ class EnzymeReactionParameterData(ReactionParameterBlock):
             doc='Reference temperature',
         )
 
+        m3kmolmin = pyunits.m**3/pyunits.kmol/pyunits.min
         self.k_rxn = Param(
             self.rate_reaction_idx,
-            initialize={'R1': 3.36e6,
-                        'R2': 1.80e6,
-                        'R3': 5.79e7},
+            initialize={
+                'R1': 3.36e6*m3kmolmin,
+                'R2': 1.80e6/pyunits.min,
+                'R3': 5.79e7/pyunits.min,
+                },
             doc='Pre-exponential rate constant in Arrhenius expression')
 
     #    self.reaction_block_class = EnzymeReactionBlock
 
     @classmethod
     def define_metadata(cls, obj):
-        obj.add_default_units({'time': pyunits.minute,
-                               'length': pyunits.m,
-                               'amount': pyunits.kmol,
-                               'temperature': pyunits.K,
-                               'mass': pyunits.kg})
+        obj.add_default_units({
+            'time': pyunits.minute,
+            'length': pyunits.m,
+            'amount': pyunits.kmol,
+            'temperature': pyunits.K,
+            'mass': pyunits.kg,
+            'energy': pyunits.kcal,
+        })
 
 
 class _EnzymeReactionBlock(ReactionBlockBase):
@@ -216,18 +252,33 @@ class EnzymeReactionBlockData(ReactionBlockDataBase):
     def build(self):
         super(EnzymeReactionBlockData, self).build()
 
-        self.reaction_coef = Var(self._params.rate_reaction_idx,
-                                 domain=Reals, doc='Reaction rate coefficient')
+        self.reaction_coef = Var(
+            self._params.rate_reaction_idx,
+            domain=Reals,
+            doc='Reaction rate coefficient',
+            # TODO: Data objects in this variable have different units.
+            # Is this a problem?
+        )
 
-        self.reaction_rate = Var(self._params.rate_reaction_idx,
-                                 domain=Reals,
-                                 doc='Reaction rate [kmol/m^3/min]')
+        kmolm3min = pyunits.kmol/pyunits.m**3/pyunits.min
+        self.reaction_rate = Var(
+            self._params.rate_reaction_idx,
+            domain=Reals,
+            doc='Reaction rate [kmol/m^3/min]',
+            units=kmolm3min,
+        )
 
-        self.dh_rxn = Param(self._params.rate_reaction_idx,
-                            domain=Reals, doc='Heat of reaction',
-                            initialize={'R1': 1e3/900/0.231,
-                                        'R2': 1e3/900/0.231,
-                                        'R3': 5e3/900/0.231})
+        self.dh_rxn = Param(
+            self._params.rate_reaction_idx,
+            domain=Reals,
+            doc='Heat of reaction',
+            units=pyunits.kcal/pyunits.kmol,
+            initialize={
+                'R1': 1e3/900/0.231,
+                'R2': 1e3/900/0.231,
+                'R3': 5e3/900/0.231,
+            },
+        )
 
         def reaction_rate_rule(b, r):
             if r == 'R1':
