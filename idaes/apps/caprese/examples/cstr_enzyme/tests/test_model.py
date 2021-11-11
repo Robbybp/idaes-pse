@@ -125,14 +125,14 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
             "fs.mixer.S_inlet_state[0].conc_mol[E]": 0.0*kmolm3,
             "fs.mixer.S_inlet_state[0].conc_mol[S]": 12.92*kmolm3,
             "fs.mixer.S_inlet_state[0].conc_mol[P]": 0.0*kmolm3,
-            "fs.mixer.S_inlet_state[0].conc_mol[Solvent]": 1.0,
+            "fs.mixer.S_inlet_state[0].conc_mol[Solvent]": 1.0*kmolm3,
             "fs.mixer.S_inlet_state[0].temperature": 329.24*K,
             "fs.mixer.E_inlet_state[0].flow_vol": 0.1*m3min,
             "fs.mixer.E_inlet_state[0].conc_mol[C]": 0.0*kmolm3,
             "fs.mixer.E_inlet_state[0].conc_mol[E]": 11.91*kmolm3,
             "fs.mixer.E_inlet_state[0].conc_mol[S]": 0.0*kmolm3,
             "fs.mixer.E_inlet_state[0].conc_mol[P]": 0.0*kmolm3,
-            "fs.mixer.E_inlet_state[0].conc_mol[Solvent]": 1.0,
+            "fs.mixer.E_inlet_state[0].conc_mol[Solvent]": 1.0*kmolm3,
             "fs.mixer.E_inlet_state[0].temperature": 310.0*K,
         }
         self.assertEqual(set(input_values), set(INPUTS))
@@ -143,10 +143,18 @@ class TestEnzymeCSTRModelSteadyState(unittest.TestCase):
             self.assertFalse(var is None)
             self.assertEqual(var.value, pyo.value(val))
             # This check fails as my variables don't have units
-            #self.assertEqual(
-            #    var.get_units().to_string(),
-            #    pyo.units.get_units(val).to_string()
-            #)
+            if pyo.value(val) == 0:
+                pass
+            elif pyo.units.get_units(val) is None:
+                self.assertIs(var.get_units(), None)
+            else:
+                # Units get eliminated from the expression tree if
+                # the value is zero.
+                self.assertEqual(
+                    var.get_units().to_string(),
+                    pyo.units.get_units(val).to_string()
+                )
+        #import pdb; pdb.set_trace()
 
         # These default conditions, with default initialization, are a great
         # example of a solve that converges when decomposed by SCC, but
