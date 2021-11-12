@@ -244,16 +244,31 @@ class PropertyClassMetadata(object):
 
     def _create_derived_units(self):
         try:
-            self._derived_units = {
-                "time": self.default_units["time"],
-                "length": self.default_units["length"],
-                "mass": self.default_units["mass"],
-                "amount": self.default_units["amount"],
-                "temperature": self.default_units["temperature"],
-                "current": self.default_units["current"],
-                "luminous intensity": self.default_units["luminous intensity"],
+            default_units = self.default_units
+            derived_units = {}
+                # Base units should not show up in a dict called
+                # "derived_units"
+                #
+                #"time": self.default_units["time"],
+                #"length": self.default_units["length"],
+                #"mass": self.default_units["mass"],
+                #"amount": self.default_units["amount"],
+                #"temperature": self.default_units["temperature"],
+                #"current": self.default_units["current"],
+                #"luminous intensity": self.default_units["luminous intensity"],
+
+            # We are walking the generations of a DAG of units.
+            # We add the units of each generation, which may depend on all
+            # previous generations.
+            derived_units.update({
                 "area": self.default_units["length"]**2,
-                "volume": self.default_units["length"]**3,
+            })
+            derived_units.update({
+                "volume": (
+                    derived_units["area"] * default_units["length"]
+                ),
+            })
+            derived_units.update({
                 "flow_mass": (self.default_units["mass"] *
                               self.default_units["time"]**-1),
                 "flow_mole": (self.default_units["amount"] *
@@ -324,7 +339,10 @@ class PropertyClassMetadata(object):
                                  self.default_units["length"]**2 *
                                  self.default_units["time"]**-2 *
                                  self.default_units["temperature"]**-1 *
-                                 self.default_units["amount"]**-1)}
+                                 self.default_units["amount"]**-1)
+            })
+
+            self._derived_units = derived_units
         except TypeError:
             raise PropertyPackageError(
                 "{} cannot determine derived units, as property package has "
