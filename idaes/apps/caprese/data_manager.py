@@ -78,7 +78,7 @@ def empty_dataframe_from_variables(variables, rename_map=None):
     ----------
     variables : list of variables of interest
     rename_map : dictionary or componentmap that maps the variable to a
-                    specific name string.
+                 specific name string.
 
     Returns
     -------
@@ -177,7 +177,7 @@ def add_variable_values_to_dataframe(
                 key = str(ComponentUID(var))
 
         # append only the desired values
-        df_map[key] = [var[t].value for t in time_subset] # Values to append for each variable
+        df_map[key] = [var[t].value for t in time_subset]
 
     if time_map:
         time_points = [time_map[t] for t in time_subset]
@@ -209,10 +209,12 @@ def add_variable_setpoints_to_dataframe(dataframe,
     for var in variables:
         column_name = str(ComponentUID(var.referent))
         if var in map_for_user_given_vars:
-            # User given variables are not nmpc_var, so they don't have setpoint attribute.
+            # User given variables are not nmpc_var, so they don't have
+            # setpoint attribute.
             # Use a componentmap to get corresponding nmpc_var.
-            df_map[column_name] = len(time_subset)* \
-                                    [map_for_user_given_vars[var].setpoint]
+            df_map[column_name] = len(time_subset)*[
+                map_for_user_given_vars[var].setpoint
+            ]
         else:
             df_map[column_name] = len(time_subset)*[var.setpoint]
 
@@ -233,34 +235,42 @@ class PlantDataManager(object):
         self.plantblock = plantblock
 
         if user_interested_states is None:
-            self.plant_user_interested_states = []
+            user_interested_states = []
+        self.plant_user_interested_states = user_interested_states
         self.plant_states_of_interest = find_and_merge_variables(
-                                                    plantblock,
-                                                    self.plantblock.differential_vars,
-                                                    user_interested_states,
-                                                    )
+            plantblock,
+            self.plantblock.differential_vars,
+            user_interested_states,
+        )
 
-        self.plant_vars_of_interest = self.plant_states_of_interest + \
-                                        self.plantblock.input_vars
+        self.plant_vars_of_interest = (
+            self.plant_states_of_interest + self.plantblock.input_vars
+        )
 
-        self.plant_df = empty_dataframe_from_variables(self.plant_vars_of_interest)
+        self.plant_df = empty_dataframe_from_variables(
+            self.plant_vars_of_interest
+        )
 
     def get_plant_dataframe(self):
         return self.plant_df
 
     def save_initial_plant_data(self):
-        self.plant_df = add_variable_values_to_dataframe(self.plant_df,
-                                                         self.plant_states_of_interest, #no inputs
-                                                         iteration = 0,
-                                                         time_subset = [self.plantblock.time.first()])
+        self.plant_df = add_variable_values_to_dataframe(
+            self.plant_df,
+            self.plant_states_of_interest, # no inputs
+            iteration = 0,
+            time_subset = [self.plantblock.time.first()],
+        )
 
     def save_plant_data(self, iteration):
         #skip time.first()
         time_subset = self.plantblock.time.ordered_data()[1:]
-        self.plant_df = add_variable_values_to_dataframe(self.plant_df,
-                                                         self.plant_vars_of_interest,
-                                                         iteration,
-                                                         time_subset = time_subset,)
+        self.plant_df = add_variable_values_to_dataframe(
+            self.plant_df,
+            self.plant_vars_of_interest,
+            iteration,
+            time_subset = time_subset,
+        )
 
 
 class ControllerDataManager(object):
@@ -280,9 +290,13 @@ class ControllerDataManager(object):
             )
         self.extra_vars_user_interested = self.controller_states_of_interest
 
-        self.controller_df = empty_dataframe_from_variables(self.controllerblock.input_vars)
+        self.controller_df = empty_dataframe_from_variables(
+            self.controllerblock.input_vars
+        )
 
-        self.setpoint_df = empty_dataframe_from_variables(self.controller_states_of_interest)
+        self.setpoint_df = empty_dataframe_from_variables(
+            self.controller_states_of_interest
+        )
 
         # HACK:
         # User given variables are not nmpc_var, so they don't have setpoint
@@ -292,8 +306,10 @@ class ControllerDataManager(object):
         # altogether. Setpoint should instead be a dict mapping cuids to values.
         vardata_map = self.controllerblock.vardata_map
         t0 = self.controllerblock.time.first()
-        self.user_given_vars_map_nmpcvar = ComponentMap((var, vardata_map[var[t0]])
-                                                        for var in self.extra_vars_user_interested)
+        self.user_given_vars_map_nmpcvar = ComponentMap(
+            (var, vardata_map[var[t0]])
+            for var in self.extra_vars_user_interested
+        )
 
     def get_controller_dataframe(self):
         return self.controller_df
@@ -305,12 +321,16 @@ class ControllerDataManager(object):
         #skip time.first()
         time = self.controllerblock.time
         #Save values in the first sample time
-        time_subset = [t for t in time if t <= self.controllerblock.sample_points[1]
-                                           and t != time.first()]
-        self.controller_df = add_variable_values_to_dataframe(self.controller_df,
-                                                              self.controllerblock.input_vars,
-                                                              iteration,
-                                                              time_subset = time_subset,)
+        time_subset = [
+            t for t in time
+            if t <= self.controllerblock.sample_points[1] and t != time.first()
+        ]
+        self.controller_df = add_variable_values_to_dataframe(
+            self.controller_df,
+            self.controllerblock.input_vars,
+            iteration,
+            time_subset = time_subset,
+        )
 
         self.setpoint_df = add_variable_setpoints_to_dataframe(
             self.setpoint_df,
@@ -319,6 +339,7 @@ class ControllerDataManager(object):
             time_subset,
             self.user_given_vars_map_nmpcvar,
         )
+
 
 class EstimatorDataManager(object):
     def __init__(self,
@@ -329,14 +350,15 @@ class EstimatorDataManager(object):
         # Convert vars in plant to vars in estimator
         if user_interested_states is None:
             user_interested_states = []
-        self.estimator_vars_of_interest = \
-            find_and_merge_variables(
-                estimatorblock,
-                estimatorblock.differential_vars,
-                user_interested_states,
-            )
+        self.estimator_vars_of_interest = find_and_merge_variables(
+            estimatorblock,
+            estimatorblock.differential_vars,
+            user_interested_states,
+        )
 
-        self.estimator_df = empty_dataframe_from_variables(self.estimator_vars_of_interest)
+        self.estimator_df = empty_dataframe_from_variables(
+            self.estimator_vars_of_interest
+        )
 
     def get_estimator_dataframe(self):
         return self.estimator_df
@@ -345,9 +367,13 @@ class EstimatorDataManager(object):
         time = self.estimatorblock.time
         t_last = time.last()
         # Estimation starts from the very first sample time.
-        time_map = OrderedDict([(t_last, (iteration+1)*self.estimatorblock.sample_time),])
-        self.estimator_df = add_variable_values_to_dataframe(self.estimator_df,
-                                                             self.estimator_vars_of_interest,
-                                                             iteration,
-                                                             time_subset = [t_last],
-                                                             time_map = time_map,)
+        time_map = OrderedDict(
+            [(t_last, (iteration+1)*self.estimatorblock.sample_time),]
+        )
+        self.estimator_df = add_variable_values_to_dataframe(
+            self.estimator_df,
+            self.estimator_vars_of_interest,
+            iteration,
+            time_subset = [t_last],
+            time_map = time_map,
+        )

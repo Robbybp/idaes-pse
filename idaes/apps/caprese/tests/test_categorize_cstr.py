@@ -32,7 +32,7 @@ from idaes.apps.caprese.categorize import (
         )
 from idaes.apps.caprese.common.config import VariableCategory as VC
 import idaes.logger as idaeslog
-from idaes.apps.caprese.examples.cstr_model import make_model
+from idaes.apps.caprese.examples.cstr_enzyme.cstr_model import make_model
 
 __author__ = "Robert Parker"
 

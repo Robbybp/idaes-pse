@@ -40,11 +40,14 @@ if SolverFactory('ipopt').available():
 else:
     solver = None
 
+def setup_plant_simulator(plant_ntfe=4,
+                          plant_ntcp=2,
+                          sample_time=2.0):
 
-def main():
-    sample_time = 2.
-    m_plant = make_model(horizon=sample_time, ntfe=4, ntcp=2, bounds = True)
-    time_plant = m_plant.t
+    m_plant = make_model(horizon=sample_time,
+                         ntfe=plant_ntfe,
+                         ntcp=plant_ntcp,
+                         bounds = True)
 
     # We must identify for the plant which variables are our
     # inputs and measurements.
@@ -68,9 +71,8 @@ def main():
 
     plant = simulator.plant
 
-    p_t0 = simulator.plant.time.first()
-    p_ts = simulator.plant.sample_points[1]
-    #--------------------------------------------------------------------------
+    solve_consistent_initial_conditions(plant, plant.time, solver)
+
     # Declare variables of interest for plotting.
     # It's ok not declaring anything. The data manager will still save some
     # important data.
@@ -79,14 +81,15 @@ def main():
 
     # Set up data manager to save plant data
     data_manager = PlantDataManager(plant, states_of_interest)
-    #--------------------------------------------------------------------------
-    solve_consistent_initial_conditions(plant, plant.time, solver)
 
-    input_list = {ind: 250.+ind*5 if ind<=5 else 260.-ind*5 for ind in range(0, 11)}
+    return simulator, data_manager
+
+def solve_first_simulation_NLP(simulator, data_manager):
 
     data_manager.save_initial_plant_data()
 
-    plant.inject_inputs([input_list[0]])
+    first_input = [250.0]
+    simulator.plant.inject_inputs(first_input)
 
     # This "initialization" really simulates the plant with the new inputs.
     simulator.plant.initialize_by_solving_elements(solver)
@@ -94,7 +97,18 @@ def main():
     solver.solve(simulator.plant, tee = True)
     data_manager.save_plant_data(iteration = 0)
 
-    for i in range(1,11):
+    return simulator, data_manager
+
+def run_iterations(simulator,
+                   data_manager,
+                   iterations=10,
+                   plot_results = True):
+
+    input_list = {ind: 250.+ind*5
+                  if ind<=5 else 260.-ind*5
+                  for ind in range(0, 11)}
+
+    for i in range(1, iterations+1):
         print('\nENTERING SIMULATOR LOOP ITERATION %s\n' % i)
 
         simulator.plant.advance_one_sample()
@@ -106,12 +120,25 @@ def main():
         solver.solve(simulator.plant, tee = True)
         data_manager.save_plant_data(iteration = i)
 
-    plot_plant_state_evolution(states_of_interest, data_manager.plant_df)
+    if plot_results:
+        states_of_interest = [Reference(simulator.plant.mod.Ca[:]),
+                              Reference(simulator.plant.mod.Tall[:, "T"])]
+        plot_plant_state_evolution(states_of_interest, data_manager.plant_df)
 
-    inputs_to_plot = [Reference(simulator.plant.mod.Tjinb[:])]
-    plot_control_input(inputs_to_plot, data_manager.plant_df)
+        inputs_to_plot = [Reference(simulator.plant.mod.Tjinb[:])]
+        plot_control_input(inputs_to_plot, data_manager.plant_df)
 
     return simulator, data_manager
 
 if __name__ == '__main__':
-    simulator, data_manager = main()
+    simulator, data_manager = setup_plant_simulator(plant_ntfe=4,
+                                                    plant_ntcp=2,
+                                                    sample_time=2.0)
+
+    simulator, data_manager = solve_first_simulation_NLP(simulator,
+                                                          data_manager)
+
+    simulator, data_manager = run_iterations(simulator,
+                                              data_manager,
+                                              iterations=10,
+                                              plot_results=True)

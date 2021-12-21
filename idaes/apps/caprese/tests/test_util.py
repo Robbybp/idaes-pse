@@ -27,7 +27,7 @@ from idaes.core.util.model_statistics import (
         )
 from idaes.apps.caprese.util import *
 from idaes.apps.caprese.common.config import NoiseBoundOption
-from idaes.apps.caprese.examples.cstr_model import make_model
+from idaes.apps.caprese.examples.cstr_enzyme.cstr_model import make_model
 import idaes.logger as idaeslog
 
 import random

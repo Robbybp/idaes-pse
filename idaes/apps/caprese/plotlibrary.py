@@ -21,10 +21,9 @@ from pyomo.environ import (
 
 __author__ = "Kuan-Han Lin"
 
-        
+
 def plot_plant_state_evolution(varslist,
                                plant_dataframe):
-    
     for ind, var in enumerate(varslist):
         str_cuid = str(ComponentUID(var.referent))
         plant_xaxis = plant_dataframe.index
@@ -32,7 +31,7 @@ def plot_plant_state_evolution(varslist,
             print("Given state ", var.name, " is not saved in the dataframe. ")
             continue
         plant_state = plant_dataframe[str_cuid]
-        
+
         title = "Simulation result: "+ str_cuid
         plt.figure(title)
         plt.plot(plant_xaxis, plant_state)#, label = "Real state")
@@ -43,7 +42,7 @@ def plot_plant_state_evolution(varslist,
                 
 def plot_control_input(inputs, 
                        plant_dataframe):
-    
+
     for ind, var in enumerate(inputs):
         str_cuid = str(ComponentUID(var.referent))
         plant_xaxis = plant_dataframe.index
@@ -51,7 +50,7 @@ def plot_control_input(inputs,
             print("Given input ", var.name, " is not saved in the dataframe. ")
             continue
         input_data = plant_dataframe[str_cuid]
-        
+
         title = "Control input: " + str_cuid
         plt.figure(title)
         plt.plot(plant_xaxis, input_data, "r")
@@ -62,7 +61,6 @@ def plot_control_input(inputs,
 def plot_setpoint_tracking_results(varslist, 
                                    plant_dataframe, 
                                    setpoint_dataframe):        
-    
     for ind, var in enumerate(varslist):
         str_cuid = str(ComponentUID(var.referent))
         plant_xaxis = plant_dataframe.index
@@ -72,8 +70,7 @@ def plot_setpoint_tracking_results(varslist,
         real_state = plant_dataframe[str_cuid]
         setpoint_df_xaxis = setpoint_dataframe.index
         state_setpoint = setpoint_dataframe[str_cuid]
-        
-        
+
         title = "Setpoint tracking result: "+ str_cuid
         plt.figure(title)
         plt.plot(plant_xaxis, real_state, label = "Real state")
@@ -86,14 +83,13 @@ def plot_setpoint_tracking_results(varslist,
 def plot_estimation_results(varslist, 
                             plant_dataframe,
                             estimator_dataframe):
-        
     for ind, var in enumerate(varslist):
         str_cuid = str(ComponentUID(var.referent))
         plant_xaxis = plant_dataframe.index
         real_state = plant_dataframe[str_cuid]
         estimator_xaxis = estimator_dataframe.index
         estimate = estimator_dataframe[str_cuid]
-        
+
         title = "Estimation result: "+ str_cuid
         plt.figure(title)
         plt.plot(plant_xaxis, real_state, label = "Real state")
