@@ -413,27 +413,39 @@ class _EstimatorBlockData(_DynamicBlockData):
 
         diff_id_set = {id(var[t0]) for var in self.differential_vars}
         for var, val in model_disturbance_weights:
+            #Check the given var is only indexed by time
+            index_set = var.index_set()
+            if index_set is not self.time:
+                raise RuntimeError("Given var ",
+                                   var.name,
+                                   "is not or not only indexed by time")
             #Check whether the given variable is classified under diffvar
-            if id(var) not in diff_id_set:
+            if id(var[t0]) not in diff_id_set:
                 raise RuntimeError(var.name,
                                    " is not a differential variable.")
 
             if givenform == "weight":
-                self.diffvar_map_moddis[var].weight = val
+                self.diffvar_map_moddis[var[t0]].weight = val
             elif givenform == "variance":
-                self.diffvar_map_moddis[var].weight = 1./val
+                self.diffvar_map_moddis[var[t0]].weight = 1./val
 
         mea_id_set = {id(var[t0]) for var in self.measurement_vars}
         for var, val in measurement_noise_weights:
+            #Check the given var is only indexed by time
+            index_set = var.index_set()
+            if index_set is not self.time:
+                raise RuntimeError("Given var ",
+                                   var.name,
+                                   "is not or not only indexed by time")
             #Check whether the given variable is declared as a measurement before
-            if id(var) not in mea_id_set:
+            if id(var[t0]) not in mea_id_set:
                 raise RuntimeError(var.name,
                                    " is not declared as a measurement.")
 
             if givenform == "weight":
-                self.meavar_map_meaerr[var].weight = val
+                self.meavar_map_meaerr[var[t0]].weight = val
             elif givenform == "variance":
-                self.meavar_map_meaerr[var].weight = 1./val
+                self.meavar_map_meaerr[var[t0]].weight = 1./val
 
         moddis_block = self.MODELDISTURBANCE_BLOCK
         moddis_list = [moddis_block[ind].var for ind in self.DIFFERENTIAL_SET]
@@ -445,13 +457,15 @@ class _EstimatorBlockData(_DynamicBlockData):
             moddis.weight * moddis[sampt]**2
             for moddis in moddis_list
             for sampt in self.sample_points
-            if sampt != self.time.first() #Skip model disturbnace at time.first()
+            if sampt != self.time.first()
+            #Skip model disturbnace at time.first()
             )
 
         vRv = sum(
             meaerr.weight * meaerr[sampt]**2
             for meaerr in meaerr_list
-            for sampt in self.sample_points #Here should include the time.first()
+            for sampt in self.sample_points
+            #Here should include the time.first()
             )
 
         self.noise_minimize_objective = Objective(expr = (wQw) + (vRv))

@@ -74,12 +74,12 @@ def setup_controller_estimator(nmpc_horizon=10,
     # We must identify for the dynamic system which variables are our
     # inputs and measurements.
     inputs = [
-            m_plant.Tjinb[0],
+            m_plant.Tjinb,
             ]
     measurements = [
-            m_plant.Tall[0, "T"],
-            # m_plant.Tall[0, "Tj"],
-            m_plant.Ca[0],
+            Reference(m_plant.Tall[:, "T"]),
+            # Reference(m_plant.Tall[:, "Tj"]),
+            m_plant.Ca,
             ]
 
     # Construct the "Dynamic simulator" object
@@ -90,8 +90,8 @@ def setup_controller_estimator(nmpc_horizon=10,
             estimator_time_set = m_estimator.t,
             controller_model = m_controller,
             controller_time_set = m_controller.t,
-            inputs_at_t0 = inputs,
-            measurements_at_t0 = measurements,
+            inputs_as_indexedvar = inputs,
+            measurements_as_indexedvar = measurements,
             sample_time = sample_time,
             )
 
@@ -109,8 +109,8 @@ def setup_controller_estimator(nmpc_horizon=10,
 
     # We now perform the "RTO" calculation: Find the optimal steady state
     # to achieve the following setpoint
-    setpoint = [(controller.mod.Ca[0], 0.018)]
-    setpoint_weights = [(controller.mod.Ca[0], 1.)]
+    setpoint = [(controller.mod.Ca, 0.018)]
+    setpoint_weights = [(controller.mod.Ca, 1.)]
 
     dyna.controller.add_single_time_optimization_objective(setpoint,
                                                            setpoint_weights)
@@ -134,22 +134,22 @@ def setup_controller_estimator(nmpc_horizon=10,
 
     # Estimator setup
     # Here we solve for a steady state and use it to fill in past measurements
-    desired_ss = [(estimator.mod.Ca[0], 0.021)]
-    ss_weights = [(estimator.mod.Ca[0], 1.)]
+    desired_ss = [(estimator.mod.Ca, 0.021)]
+    ss_weights = [(estimator.mod.Ca, 1.)]
     dyna.estimator.initialize_past_info_with_steady_state(desired_ss,
                                                           ss_weights,
                                                           solver)
 
     # Now we are ready to construct the objective function for MHE
     model_disturbance_weights = [
-            (estimator.mod.Ca[0], 1.),
-            (estimator.mod.Tall[0, "T"], 1.),
-            (estimator.mod.Tall[0, "Tj"], 1.),
+            (estimator.mod.Ca, 1.),
+            (Reference(estimator.mod.Tall[:, "T"]), 1.),
+            (Reference(estimator.mod.Tall[:, "Tj"]), 1.),
             ]
 
     measurement_noise_weights = [
-            (estimator.mod.Ca[0], 100.),
-            (estimator.mod.Tall[0, "T"], 20.),
+            (estimator.mod.Ca, 100.),
+            (Reference(estimator.mod.Tall[:, "T"]), 20.),
             ]
 
     dyna.estimator.add_noise_minimize_objective(model_disturbance_weights,
@@ -213,7 +213,7 @@ def setup_noise(dyna):
 
     # Set up input noises that will be applied to control inputs
     variance = [
-        (dyna.plant.mod.Tjinb[0], 0.01),
+        (dyna.plant.mod.Tjinb, 0.01),
         ]
     dyna.plant.set_variance(variance)
     input_variance = [v.variance for v in dyna.plant.INPUT_BLOCK[:].var]
@@ -222,8 +222,8 @@ def setup_noise(dyna):
 
     # Set up measurement noises that will be applied to measurements
     variance = [
-        (dyna.estimator.mod.Tall[0, "T"], 0.05),
-        (dyna.estimator.mod.Ca[0], 1.0E-2),
+        (Reference(dyna.estimator.mod.Tall[:, "T"]), 0.05),
+        (dyna.estimator.mod.Ca, 1.0E-2),
         ]
     dyna.estimator.set_variance(variance)
     measurement_variance = [v.variance
@@ -349,5 +349,3 @@ if __name__ == '__main__':
                                                         noise_info=noise_info,
                                                         plot_results=True
                                                         )
-
-

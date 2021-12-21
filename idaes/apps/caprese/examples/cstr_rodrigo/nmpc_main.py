@@ -62,12 +62,12 @@ def setup_controller(nmpc_horizon=10,
     # We must identify for the controller which variables are our
     # inputs and measurements.
     inputs = [
-            m_plant.Tjinb[0],
+            m_plant.Tjinb, # Reference(m_plant.Tjinb[:]) also works.
             ]
     measurements = [
-            m_plant.Tall[0, "T"],
-            m_plant.Tall[0, "Tj"],
-            m_plant.Ca[0],
+            Reference(m_plant.Tall[:, "T"]),
+            Reference(m_plant.Tall[:, "Tj"]),
+            Reference(m_plant.Ca[:]), # m.plant_Ca also works.
             ]
 
     # Construct the "NMPC simulator" object
@@ -76,8 +76,8 @@ def setup_controller(nmpc_horizon=10,
             plant_time_set=m_plant.t,
             controller_model=m_controller,
             controller_time_set=m_controller.t,
-            inputs_at_t0=inputs,
-            measurements_at_t0=measurements,
+            inputs_as_indexedvar=inputs,
+            measurements_as_indexedvar=measurements,
             sample_time=sample_time,
             )
 
@@ -89,8 +89,8 @@ def setup_controller(nmpc_horizon=10,
 
     # We now perform the "RTO" calculation: Find the optimal steady state
     # to achieve the following setpoint
-    setpoint = [(controller.mod.Ca[0], 0.018)]
-    setpoint_weights = [(controller.mod.Ca[0], 1.)]
+    setpoint = [(controller.mod.Ca, 0.018)]
+    setpoint_weights = [(controller.mod.Ca, 1.)]
 
     nmpc.controller.add_single_time_optimization_objective(setpoint,
                                                            setpoint_weights)
@@ -151,9 +151,9 @@ def setup_noise(nmpc):
 
     #noise for measurements
     variance = [
-        (nmpc.controller.mod.Tall[0, "T"], 0.05),
-        (nmpc.controller.mod.Tall[0, "Tj"], 0.02),
-        (nmpc.controller.mod.Ca[0], 1.0E-5),
+        (Reference(nmpc.controller.mod.Tall[:, "T"]), 0.05),
+        (Reference(nmpc.controller.mod.Tall[:, "Tj"]), 0.02),
+        (nmpc.controller.mod.Ca, 1.0E-5),
         ]
     nmpc.controller.set_variance(variance)
     measurement_variance = [
@@ -166,7 +166,7 @@ def setup_noise(nmpc):
 
     # noise for inputs
     variance = [
-        (nmpc.plant.mod.Tjinb[0], 0.01),
+        (nmpc.plant.mod.Tjinb, 0.01),
         ]
     nmpc.plant.set_variance(variance)
     input_variance = [v.variance for v in nmpc.plant.INPUT_BLOCK[:].var]

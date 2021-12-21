@@ -59,12 +59,12 @@ def setup_estimator(mhe_horizon=10,
     # We must identify for the estimator which variables are our
     # inputs and measurements.
     inputs = [
-            m_plant.Tjinb[0],
+            m_plant.Tjinb,
             ]
     measurements = [
-            m_plant.Tall[0, "T"],
-            # m_plant.Tall[0, "Tj"],
-            m_plant.Ca[0],
+            Reference(m_plant.Tall[:, "T"]),
+            # Reference(m_plant.Tall[:, "Tj"]),
+            m_plant.Ca,
             ]
 
     # Construct the "MHE simulator" object
@@ -73,8 +73,8 @@ def setup_estimator(mhe_horizon=10,
             plant_time_set=m_plant.t,
             estimator_model=m_estimator,
             estimator_time_set=m_estimator.t,
-            inputs_at_t0=inputs,
-            measurements_at_t0=measurements,
+            inputs_as_indexedvar = inputs,
+            measurements_as_indexedvar = measurements,
             sample_time=sample_time,
             )
 
@@ -84,8 +84,8 @@ def setup_estimator(mhe_horizon=10,
     solve_consistent_initial_conditions(plant, plant.time, solver)
 
     # Here we solve for a steady state and use it to fill in past measurements
-    desired_ss = [(estimator.mod.Ca[0], 0.021)]
-    ss_weights = [(estimator.mod.Ca[0], 1.)]
+    desired_ss = [(estimator.mod.Ca, 0.021)]
+    ss_weights = [(estimator.mod.Ca, 1.)]
     mhe.estimator.initialize_past_info_with_steady_state(
         desired_ss,
         ss_weights,
@@ -94,14 +94,14 @@ def setup_estimator(mhe_horizon=10,
 
     # Now we are ready to construct the objective function for MHE
     model_disturbance_variances = [
-            (estimator.mod.Ca[0], 1.),
-            (estimator.mod.Tall[0, "T"], 1.),
-            (estimator.mod.Tall[0, "Tj"], 1.),
+            (estimator.mod.Ca, 1.),
+            (Reference(estimator.mod.Tall[:, "T"]), 1.),
+            (Reference(estimator.mod.Tall[:, "Tj"]), 1.),
             ]
 
     measurement_noise_variances = [
-            (mhe.estimator.mod.Tall[0, "T"], 0.05),
-            (mhe.estimator.mod.Ca[0], 1.0E-2),
+            (Reference(mhe.estimator.mod.Tall[:, "T"]), 0.05),
+            (mhe.estimator.mod.Ca, 1.0E-2),
             ]
 
     mhe.estimator.add_noise_minimize_objective(model_disturbance_variances,
@@ -150,8 +150,8 @@ def setup_noise(mhe):
 
     # Set up measurement noises that will be applied to measurements
     variance = [
-        (mhe.estimator.mod.Tall[0, "T"], 0.05),
-        (mhe.estimator.mod.Ca[0], 1.0E-2),
+        (Reference(mhe.estimator.mod.Tall[:, "T"]), 0.05),
+        (mhe.estimator.mod.Ca, 1.0E-2),
         ]
     mhe.estimator.set_variance(variance)
     measurement_variance = [

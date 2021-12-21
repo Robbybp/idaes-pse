@@ -26,11 +26,12 @@ from idaes.apps.caprese.dynamic_block import DynamicBlock
 from idaes.apps.caprese.controller import ControllerBlock
 from idaes.apps.caprese.estimator import EstimatorBlock
 from idaes.apps.caprese.common.config import VariableCategory as VC
+from idaes.apps.caprese.util import convert_time_only_indexedvar_to_cuid
 
 __author__ = "Robert Parker, David Thierry, and Kuan-Han Lin"
 
 
-def capture_vars_t0_w_CUID(cuid_list, 
+def capture_vars_t0_w_CUID(cuid_list,
                            target_t0,
                            target_mod):
     varlist_in_target_model = [cuid.find_component_on(target_mod)[target_t0]
@@ -44,33 +45,54 @@ class DynamicSim(object):
                  plant_time_set = None,
                  estimator_model = None,
                  estimator_time_set = None,
-                 controller_model = None, 
+                 controller_model = None,
                  controller_time_set = None,
-                 inputs_at_t0 = None,
-                 measurements_at_t0 = None,
+                 # inputs_at_t0 = None,
+                 inputs_as_indexedvar = None,
+                 # measurements_at_t0 = None,
+                 measurements_as_indexedvar = None,
                  sample_time = None,):
 
-        self.input_cuids = [
-                            ComponentUID(
-                            slice_component_along_sets(comp, (plant_time_set,)))
-                            for comp in inputs_at_t0
-                            ]
-        self.measurement_cuids = [
-                            ComponentUID(
-                            slice_component_along_sets(comp, (plant_time_set,)))
-                            for comp in measurements_at_t0
-                            ]
+        # self.input_cuids = [
+        #                     ComponentUID(
+        #                     slice_component_along_sets(comp, (plant_time_set,)))
+        #                     for comp in inputs_at_t0
+        #                     ]
+        self.input_cuids = [convert_time_only_indexedvar_to_cuid(
+                                                            var,
+                                                            plant_time_set
+                                                            )
+                            for var in inputs_as_indexedvar]
+
+        # self.measurement_cuids = [
+        #                     ComponentUID(
+        #                     slice_component_along_sets(comp, (plant_time_set,)))
+        #                     for comp in measurements_at_t0
+        #                     ]
+        self.measurement_cuids = [convert_time_only_indexedvar_to_cuid(
+                                                            var,
+                                                            plant_time_set
+                                                            )
+                                  for var in measurements_as_indexedvar]
 
         self.has_plant = False
         self.has_estimator = False
         self.has_controller = False
 
-        #----------------------------------------------------------------------                
+        #----------------------------------------------------------------------
         if plant_model:
             self.has_plant = True
             # Capture vars in plant model
-            plant_inputs_t0 = inputs_at_t0
-            plant_measurements_t0 = measurements_at_t0
+            # plant_inputs_t0 = inputs_at_t0
+            # plant_measurements_t0 = measurements_at_t0
+            plant_inputs_t0 = capture_vars_t0_w_CUID(self.input_cuids,
+                                                     plant_time_set.first(),
+                                                     plant_model,)
+            plant_measurements_t0 = capture_vars_t0_w_CUID(
+                                                        self.measurement_cuids,
+                                                        plant_time_set.first(),
+                                                        plant_model,
+                                                        )
 
             self.plant = DynamicBlock(
                     model=plant_model,
@@ -85,10 +107,10 @@ class DynamicSim(object):
 
 
 
-        #----------------------------------------------------------------------                
+        #----------------------------------------------------------------------
         if estimator_model:
             self.has_estimator = True
-            
+
             # Capture vars in estimator model
             estimator_inputs_t0 = capture_vars_t0_w_CUID(
                                                     self.input_cuids,
@@ -100,7 +122,7 @@ class DynamicSim(object):
                                                     estimator_time_set.first(),
                                                     estimator_model,
                                                         )
-            
+
             self.estimator = EstimatorBlock(
                     model=estimator_model,
                     time=estimator_time_set,
@@ -129,19 +151,19 @@ class DynamicSim(object):
                                                     controller_time_set.first(),
                                                     controller_model,
                                                             )
-            
+
             self.controller = ControllerBlock(
                     model=controller_model,
                     time=controller_time_set,
                     inputs=controller_inputs_t0,
                     measurements=controller_measurements_t0,
                     )
-            self.controller.construct()        
+            self.controller.construct()
 
             if sample_time is not None:
                 self.controller.set_sample_time(sample_time)
 
-            # Controller should know whether the estimator exists or not    
+            # Controller should know whether the estimator exists or not
             if self.has_estimator:
                 self.controller.has_estimator = True
             else:
@@ -154,7 +176,7 @@ class DynamicSim(object):
 
         #check number of measurements and differential vars if there is no mhe
         if self.has_controller and not self.has_estimator:
-            if len(measurements_at_t0) != \
+            if len(measurements_as_indexedvar) != \
                 len(self.controller.differential_vars):
 
                 raise RuntimeError(
@@ -163,10 +185,10 @@ class DynamicSim(object):
                     "the number of differential variables.")
 
         if self.has_controller and self.has_estimator:
-            # In this case, controller should take the estimation results from MHE, 
-            # instead of the measurements directly from the plant for initial conditions.       
+            # In this case, controller should take the estimation results from MHE,
+            # instead of the measurements directly from the plant for initial conditions.
 
-            # Initial conditions are defined by the differential variables, 
+            # Initial conditions are defined by the differential variables,
             # not by measurements.
             controller_t0 = self.controller.time.first()
             self.controller.vectors.measurement[:, controller_t0].unfix()

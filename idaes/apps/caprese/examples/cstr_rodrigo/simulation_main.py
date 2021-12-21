@@ -52,20 +52,20 @@ def setup_plant_simulator(plant_ntfe=4,
     # We must identify for the plant which variables are our
     # inputs and measurements.
     inputs = [
-            m_plant.Tjinb[0],
+            m_plant.Tjinb,
             ]
     measurements = [
-            m_plant.Tall[0, "T"],
-            # m_plant.Tall[0, "Tj"],
-            m_plant.Ca[0],
+            Reference(m_plant.Tall[:, "T"]),
+            # Reference(m_plant.Tall[:, "Tj"]),
+            m_plant.Ca,
             ]
 
     # Construct the "plant simulator" object
     simulator = DynamicSim(
                     plant_model=m_plant,
                     plant_time_set=m_plant.t,
-                    inputs_at_t0=inputs,
-                    measurements_at_t0=measurements,
+                    inputs_as_indexedvar = inputs,
+                    measurements_as_indexedvar = measurements,
                     sample_time=sample_time,
                     )
 

@@ -231,21 +231,21 @@ class _DynamicBlockData(_BlockData):
 
         # Maps each vardata (of a time-indexed var) to the DynamicVar
         # that contains it.
-        self.vardata_map = ComponentMap((var[t], var) 
+        self.vardata_map = ComponentMap((var[t], var)
                 for var in self.component_objects(SubclassOf(DynamicVar))
                 #for varlist in category_dict.values()
                 #for var in varlist
                 for t in var.index_set()
                 if var.ctype is not MeasuredVar
                 )
-        # NOTE: looking up var[t] instead of iterating over values() 
+        # NOTE: looking up var[t] instead of iterating over values()
         # appears to be ~ 5x faster
 
         if self._sample_time is None:
             # Default is to assume that the entire model is one sample.
             self.sample_points = [time.first(), time.last()]
             self.sample_point_indices = [1, len(time)]
-        else: 
+        else:
             self.set_sample_time(self._sample_time)
 
     _var_name = 'var'
@@ -362,10 +362,10 @@ class _DynamicBlockData(_BlockData):
 
     def validate_sample_time(self, sample_time, tolerance=1e-8):
         """Makes sure sample points, or integer multiple of sample time-offsets
-        from time.first(), lie on finite element boundaries, and that the 
-        horizon of each model is an integer multiple of sample time. Assembles 
-        a list of sample points and a dictionary mapping sample points to the 
-        number of finite elements in the preceding sampling period, and adds 
+        from time.first(), lie on finite element boundaries, and that the
+        horizon of each model is an integer multiple of sample time. Assembles
+        a list of sample points and a dictionary mapping sample points to the
+        number of finite elements in the preceding sampling period, and adds
         them as attributes to _NMPC_NAMESPACE.
 
         Args:
@@ -453,20 +453,30 @@ class _DynamicBlockData(_BlockData):
 
         """
         vardata_map = self.vardata_map
-        for vardata, weight in weights:
-            nmpc_var = vardata_map[vardata]
+        for var, weight in weights:
+            index_set = var.index_set()
+            if index_set is not self.time:
+                raise RuntimeError("Given var ",
+                                   var.name,
+                                   "is not or not only indexed by time")
+            nmpc_var = vardata_map[var[index_set.first()]]
             nmpc_var.weight = weight
 
         weight_vector = []
-        for vardata, sp in setpoint:
-            nmpc_var = vardata_map[vardata]
+        for var, sp in setpoint:
+            index_set = var.index_set()
+            if index_set is not self.time:
+                raise RuntimeError("Given var ",
+                                   var.name,
+                                   "is not or not only indexed by time")
+            nmpc_var = vardata_map[var[index_set.first()]]
             if nmpc_var.weight is None:
                 self.logger.warning('Weight not supplied for %s' % var.name)
                 nmpc_var.weight = 1.0
             weight_vector.append(nmpc_var.weight)
 
         obj_expr = sum(
-            weight_vector[i]*(var - sp)**2 for
+            weight_vector[i]*(var[var.index_set().first()] - sp)**2 for
             i, (var, sp) in enumerate(setpoint))
         self.single_time_optimization_objective = Objective(expr=obj_expr)
 
@@ -492,7 +502,7 @@ class _DynamicBlockData(_BlockData):
 
         """
 
-        # I think if we re-define the measurements in the controller, we propbably 
+        # I think if we re-define the measurements in the controller, we propbably
         # don't need this if statement.
         if ic_type == "differential_var":
             ics_vector_var = self.vectors.differential
@@ -610,7 +620,7 @@ class _DynamicBlockData(_BlockData):
             if ictype in self.categories:
                 ics_vector_var.values = init_ics
 
-    def initialize_sample_to_setpoint(self, 
+    def initialize_sample_to_setpoint(self,
             sample_idx,
             ctype=(DiffVar, AlgVar, InputVar, DerivVar),
             ):
@@ -639,7 +649,7 @@ class _DynamicBlockData(_BlockData):
             ):
         """ Set values to initial values for variables of the
         specified variable ctypes in the specified sample.
-        (This version can also handle vars that are indexed by 
+        (This version can also handle vars that are indexed by
          SAMPLEPOINT_SET.)
         """
         sample_points = self.sample_points
@@ -655,7 +665,7 @@ class _DynamicBlockData(_BlockData):
                 t = indexset.at(i)
                 var[t].set_value(var[t0].value)
 
-    def initialize_to_setpoint(self, 
+    def initialize_to_setpoint(self,
             ctype=(DiffVar, AlgVar, InputVar, DerivVar),
             ):
         """ Sets values to setpoint values for specified variable
@@ -666,13 +676,13 @@ class _DynamicBlockData(_BlockData):
         for i in range(len(self.sample_points)):
             self.initialize_sample_to_setpoint(i, ctype=ctype)
 
-    def initialize_to_initial_conditions(self, 
+    def initialize_to_initial_conditions(self,
             ctype=(DiffVar, AlgVar, DerivVar),
             ):
         """ Sets values to initial values for specified variable
         ctypes for all time points.
         """
-        
+
         # There should be negligible overhead to initializing
         # in many small loops as opposed to one big loop here.
         for i in range(len(self.sample_points)):
@@ -765,9 +775,15 @@ class _DynamicBlockData(_BlockData):
                            are the variances.
         """
         t0 = self.time.first()
-        variance_map = ComponentMap(variance_list)
+        variance_map = ComponentMap((var[t0], val)
+                                     for var, val in variance_list)
         for var, val in variance_list:
-            nmpc_var = self.vardata_map[var]
+            index_set = var.index_set()
+            if index_set is not self.time:
+                raise RuntimeError("Given var ",
+                                   var.name,
+                                   "is not or not only indexed by time")
+            nmpc_var = self.vardata_map[var[t0]]
             nmpc_var.variance = val
         # MeasurementVars will not have their variance set since they are
         # not mapped to in vardata_map
@@ -800,7 +816,7 @@ class _DynamicBlockData(_BlockData):
                     )
 
     def inject_inputs(self, inputs, time_subset = None):
-        # To simulate computational delay, this function would 
+        # To simulate computational delay, this function would
         # need an argument for the start time of inputs.
 
         if VC.INPUT in self.categories:
@@ -850,7 +866,7 @@ class _DynamicBlockData(_BlockData):
                     var[t].set_value(var[ts].value)
                 elif var.index_set() is not time:
                     #Additional inner if statement because SimpleDynamicBlock doesn't have SAMPLEPOINT_SET
-                    if var.index_set() is self.SAMPLEPOINT_SET: 
+                    if var.index_set() is self.SAMPLEPOINT_SET:
                         if idx in self.sample_point_indices:
                             var[t].set_value(var[ts].value)
 
@@ -866,7 +882,7 @@ class _DynamicBlockData(_BlockData):
         for MHEctype in MHE_ctypes:
             if MHEctype in Block_ctypes:
                 ctype += (MHEctype,)
-        
+
         sample_time = self.sample_time
         self.advance_by_time(
                 sample_time,
@@ -883,7 +899,7 @@ class _DynamicBlockData(_BlockData):
         """ Generate time points between the provided time point
         and one sample time in the past.
         """
-        # TODO: Need to address the question of whether I want users 
+        # TODO: Need to address the question of whether I want users
         # passing around time points or the integer index of samples.
         time = self.time
         idx_s = time.find_nearest_index(ts, tolerance=tolerance)
@@ -1047,7 +1063,7 @@ class DynamicBlock(Block):
             block.mod = self._init_model(parent, idx)
 
         if self._init_time is not None:
-            super(_BlockData, block).__setattr__('time', 
+            super(_BlockData, block).__setattr__('time',
                     self._init_time(parent, idx))
 
         if self._init_inputs is not None:
