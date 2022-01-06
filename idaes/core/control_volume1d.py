@@ -610,9 +610,17 @@ argument)."""))
                              doc="Material holdup calculations")
             def material_holdup_calculation(b, t, x, p, j):
                 if (p, j) in pc_set:
-                    return b.material_holdup[t, x, p, j] == (
-                          b._area_func(t, x)*self.phase_fraction[t, x, p] *
-                          b.properties[t, x].get_material_density_terms(p, j))
+                    material_holdup = b.material_holdup[t, x, p, j]
+                    material_holdup_expr = (
+                        b._area_func(t, x)
+                        * self.phase_fraction[t, x, p]
+                        * b.properties[t, x].get_material_density_terms(p, j)
+                    )
+                    # TODO: How big of a performance hit is this?
+                    return material_holdup == pyunits.convert(
+                        material_holdup_expr,
+                        material_holdup.get_units(),
+                    )
 
         if has_rate_reactions:
             # Add extents of reaction and stoichiometric constraints
