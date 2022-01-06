@@ -251,40 +251,101 @@ class PropertyClassMetadata(object):
         # control volumes to return both types of units. A better name
         # might just be "units" or "property_units".
         try:
-            # What is the right way to hand-code a topological order of
-            # this DAG?
-
-            #units = {}
+            # We build up a dictionary of known units. These units form a DAG
+            # specifying the order they must be calculated, e.g.
+            #     temperature__________
+            #     mass_________________\
+            #             \             \
+            #     time --> force         \
+            #             /     \         \
+            #            /       energy -> heat_capacity_mass -> ...
+            #           /_______/      \
+            #     length                ... ->
+            # We traverse this DAG, one "generation" of nodes at a time,
+            # calculating units. If a unit is already provided in default_units,
+            # we use that value. Otherwise we use our calculated unit.
+            # Traversing the DAG in this order ensures that if a "derived unit,"
+            # such as kJ for energy, is specified by the user in default_units,
+            # all "downstream" units, such as heat_capacity_mass, use kJ as
+            # well.
             units = dict(self.default_units)
-
-            # for each property
-            #     calculate a unit from existing units
-            #         ^ Do this for each unit in a generation
-            #     For each unit in the generation:
-            #         if property already has a unit, pass
-            #         otherwise populate units with calculated unit
-
-            #def update_units_with_default(names):
-            #    units.update({name: self.default_units[name] for name in names})
 
             def update_units(calculated_units):
                 for name in calculated_units:
                     if name not in units:
+                        # If a unit was not already provided, we update.
                         units[name] = calculated_units[name]
 
-            # Generation 0:
-            # These are just "base units", which are already in default units.
-
             # Generation 1:
-            calculated_units_1 = {}
-            calculated_units_1["area"] = units["length"]**2
-            update_units(calculated_units_1)
+            update_units({
+                "area": units["length"]**2,
+                "flow_mass": units["mass"] / units["time"],
+                "flow_mole": units["amount"] / units["time"],
+                "velocity": units["length"] / units["time"],
+                "molecular_weight": units["mass"] / units["amount"],
+            })
 
             # Generation 2:
-            calculated_units_2 = {}
-            calculated_units_2["volume"] = units["area"] * units["length"]
+            update_units({
+                "volume": units["area"] * units["length"],
+                "flux_mass": units["flow_mass"] / units["area"],
+                "flux_mole": units["flow_mole"] / units["area"],
+                "acceleration": units["velocity"] / units["time"],
+            })
+
+            # Generation 3:
+            update_units({
+                "flow_vol": units["volume"] / units["time"],
+                "density_mass": units["mass"] / units["volume"],
+                "density_mole": units["amount"] / units["volume"],
+                "force": units["mass"] * units["acceleration"],
+            })
+
+            # Generation 4:
+            update_units({
+                "energy": units["force"] * units["length"],
+                "pressure": units["force"] / units["area"],
+            })
+
+            # Generation 5:
+            update_units({
+                #"flow_energy": units["energy"] / units["time"],
+                "flux_energy": units["energy"] / units["time"] / units["area"],
+                "energy_mass": units["energy"] / units["mass"],
+                "energy_mole": units["energy"] / units["amount"],
+                "entropy": units["energy"] / units["temperature"],
+                "power": units["energy"] / units["time"],
+                "heat_capacity_mass": (
+                    units["energy"] / units["mass"] / units["temperature"]
+                ),
+                "heat_capacity_mole": (
+                    units["energy"] / units["amount"] / units["temperature"]
+                ),
+            })
+
+            # Generation 6:
+            update_units({
+                "entropy_mass": units["entropy"] * units["mass"],
+                "entropy_mole": units["entropy"] * units["amount"],
+                "heat_transfer_coefficient": (
+                    units["flux_energy"] / units["temperature"]
+                ),
+                "thermal_conductivity": (
+                    units["power"] / units["length"] / units["temperature"],
+                ),
+                "gas_constant": units["heat_capacity_mole"],
+            })
+
+            self._derived_units = units
 
             #self._derived_units = {
+            #    "time": self.default_units["time"],
+            #    "length": self.default_units["length"],
+            #    "mass": self.default_units["mass"],
+            #    "amount": self.default_units["amount"],
+            #    "temperature": self.default_units["temperature"],
+            #    "current": self.default_units["current"],
+            #    "luminous intensity": self.default_units["luminous intensity"],
             #    "area": self.default_units["length"]**2,
             #    "volume": self.default_units["length"]**3,
             #    "flow_mass": (self.default_units["mass"] *
@@ -360,94 +421,7 @@ class PropertyClassMetadata(object):
             #                     self.default_units["time"]**-2 *
             #                     self.default_units["temperature"]**-1 *
             #                     self.default_units["amount"]**-1)}
-
-            self._derived_units = {
-                "time": self.default_units["time"],
-                "length": self.default_units["length"],
-                "mass": self.default_units["mass"],
-                "amount": self.default_units["amount"],
-                "temperature": self.default_units["temperature"],
-                "current": self.default_units["current"],
-                "luminous intensity": self.default_units["luminous intensity"],
-                "area": self.default_units["length"]**2,
-                "volume": self.default_units["length"]**3,
-                "flow_mass": (self.default_units["mass"] *
-                              self.default_units["time"]**-1),
-                "flow_mole": (self.default_units["amount"] *
-                              self.default_units["time"]**-1),
-                "flow_vol": (self.default_units["length"]**3 *
-                             self.default_units["time"]**-1),
-                "flux_mass": (self.default_units["mass"] *
-                              self.default_units["time"]**-1 *
-                              self.default_units["length"]**-2),
-                "flux_mole": (self.default_units["amount"] *
-                              self.default_units["time"]**-1 *
-                              self.default_units["length"]**-2),
-                "flux_energy": (self.default_units["mass"] *
-                                self.default_units["time"]**-3),
-                "velocity": (self.default_units["length"] *
-                             self.default_units["time"]**-1),
-                "acceleration": (self.default_units["length"] *
-                                 self.default_units["time"]**-2),
-                "density_mass": (self.default_units["mass"] *
-                                 self.default_units["length"]**-3),
-                "density_mole": (self.default_units["amount"] *
-                                 self.default_units["length"]**-3),
-                "molecular_weight": (self.default_units["mass"] /
-                                     self.default_units["amount"]),
-                "energy": (self.default_units["mass"] *
-                           self.default_units["length"]**2 *
-                           self.default_units["time"]**-2),
-                "energy_mass": (self.default_units["length"]**2 *
-                                self.default_units["time"]**-2),
-                "energy_mole": (self.default_units["mass"] *
-                                self.default_units["length"]**2 *
-                                self.default_units["time"]**-2 *
-                                self.default_units["amount"]**-1),
-                "entropy": (self.default_units["mass"] *
-                            self.default_units["length"]**2 *
-                            self.default_units["time"]**-2 *
-                            self.default_units["temperature"]**-1),
-                "entropy_mass": (self.default_units["length"]**2 *
-                                 self.default_units["time"]**-2 *
-                                 self.default_units["temperature"]**-1),
-                "entropy_mole": (self.default_units["mass"] *
-                                 self.default_units["length"]**2 *
-                                 self.default_units["time"]**-2 *
-                                 self.default_units["temperature"]**-1 *
-                                 self.default_units["amount"]**-1),
-                "power": (self.default_units["mass"] *
-                          self.default_units["length"]**2 *
-                          self.default_units["time"]**-3),
-                "pressure": (self.default_units["mass"] *
-                             self.default_units["length"]**-1 *
-                             self.default_units["time"]**-2),
-                "heat_capacity_mass": (self.default_units["length"]**2 *
-                                       self.default_units["time"]**-2 *
-                                       self.default_units["temperature"]**-1),
-                "heat_capacity_mole": (self.default_units["mass"] *
-                                       self.default_units["length"]**2 *
-                                       self.default_units["time"]**-2 *
-                                       self.default_units["temperature"]**-1 *
-                                       self.default_units["amount"]**-1),
-                "heat_transfer_coefficient":
-                    (self.default_units["mass"] *
-                     self.default_units["time"]**-3 *
-                     self.default_units["temperature"]**-1),
-                "thermal_conductivity":
-                    (self.default_units["mass"] *
-                     self.default_units["length"] *
-                     self.default_units["time"]**-3 *
-                     self.default_units["temperature"]**-1),
-                "gas_constant": (self.default_units["mass"] *
-                                 self.default_units["length"]**2 *
-                                 self.default_units["time"]**-2 *
-                                 self.default_units["temperature"]**-1 *
-                                 self.default_units["amount"]**-1)}
-
-            # So I can check any units above I calculate with my algorithm
-            # above without losing units calculated by the default.
-            self._derived_units.update(units)
+            #self._derived_units.update(units)
         except TypeError:
             # What is this catching? E.g. None**2? None["mass"]?
             # TypeError seems vague. -RBP
