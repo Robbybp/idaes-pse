@@ -188,8 +188,11 @@ class PropertyClassMetadata(object):
                 # to skip these
                 continue
             elif not isinstance(u, _PyomoUnit):
-                raise PropertyPackageError(
-                    f"Unrecognized units of measurment for quantity {q} ({u})")
+                # TODO: What is the right way to check that an expression
+                # is comprised only of Pyomo unit objects.
+                pass
+                #raise PropertyPackageError(
+                #    f"Unrecognized units of measurment for quantity {q} ({u})")
 
     def add_properties(self, p):
         """Add properties to the metadata.
@@ -243,7 +246,121 @@ class PropertyClassMetadata(object):
             return self.derived_units[units]
 
     def _create_derived_units(self):
+        # NOTE: "derived units" is somewhat of a misnomer as the dict
+        # created contains "base units" as well, and is accessed by
+        # control volumes to return both types of units. A better name
+        # might just be "units" or "property_units".
         try:
+            # What is the right way to hand-code a topological order of
+            # this DAG?
+
+            #units = {}
+            units = dict(self.default_units)
+
+            # for each property
+            #     calculate a unit from existing units
+            #         ^ Do this for each unit in a generation
+            #     For each unit in the generation:
+            #         if property already has a unit, pass
+            #         otherwise populate units with calculated unit
+
+            #def update_units_with_default(names):
+            #    units.update({name: self.default_units[name] for name in names})
+
+            def update_units(calculated_units):
+                for name in calculated_units:
+                    if name not in units:
+                        units[name] = calculated_units[name]
+
+            # Generation 0:
+            # These are just "base units", which are already in default units.
+
+            # Generation 1:
+            calculated_units_1 = {}
+            calculated_units_1["area"] = units["length"]**2
+            update_units(calculated_units_1)
+
+            # Generation 2:
+            calculated_units_2 = {}
+            calculated_units_2["volume"] = units["area"] * units["length"]
+
+            #self._derived_units = {
+            #    "area": self.default_units["length"]**2,
+            #    "volume": self.default_units["length"]**3,
+            #    "flow_mass": (self.default_units["mass"] *
+            #                  self.default_units["time"]**-1),
+            #    "flow_mole": (self.default_units["amount"] *
+            #                  self.default_units["time"]**-1),
+            #    "flow_vol": (self.default_units["length"]**3 *
+            #                 self.default_units["time"]**-1),
+            #    "flux_mass": (self.default_units["mass"] *
+            #                  self.default_units["time"]**-1 *
+            #                  self.default_units["length"]**-2),
+            #    "flux_mole": (self.default_units["amount"] *
+            #                  self.default_units["time"]**-1 *
+            #                  self.default_units["length"]**-2),
+            #    "flux_energy": (self.default_units["mass"] *
+            #                    self.default_units["time"]**-3),
+            #    "velocity": (self.default_units["length"] *
+            #                 self.default_units["time"]**-1),
+            #    "acceleration": (self.default_units["length"] *
+            #                     self.default_units["time"]**-2),
+            #    "density_mass": (self.default_units["mass"] *
+            #                     self.default_units["length"]**-3),
+            #    "density_mole": (self.default_units["amount"] *
+            #                     self.default_units["length"]**-3),
+            #    "molecular_weight": (self.default_units["mass"] /
+            #                         self.default_units["amount"]),
+            #    "energy": (self.default_units["mass"] *
+            #               self.default_units["length"]**2 *
+            #               self.default_units["time"]**-2),
+            #    "energy_mass": (self.default_units["length"]**2 *
+            #                    self.default_units["time"]**-2),
+            #    "energy_mole": (self.default_units["mass"] *
+            #                    self.default_units["length"]**2 *
+            #                    self.default_units["time"]**-2 *
+            #                    self.default_units["amount"]**-1),
+            #    "entropy": (self.default_units["mass"] *
+            #                self.default_units["length"]**2 *
+            #                self.default_units["time"]**-2 *
+            #                self.default_units["temperature"]**-1),
+            #    "entropy_mass": (self.default_units["length"]**2 *
+            #                     self.default_units["time"]**-2 *
+            #                     self.default_units["temperature"]**-1),
+            #    "entropy_mole": (self.default_units["mass"] *
+            #                     self.default_units["length"]**2 *
+            #                     self.default_units["time"]**-2 *
+            #                     self.default_units["temperature"]**-1 *
+            #                     self.default_units["amount"]**-1),
+            #    "power": (self.default_units["mass"] *
+            #              self.default_units["length"]**2 *
+            #              self.default_units["time"]**-3),
+            #    "pressure": (self.default_units["mass"] *
+            #                 self.default_units["length"]**-1 *
+            #                 self.default_units["time"]**-2),
+            #    "heat_capacity_mass": (self.default_units["length"]**2 *
+            #                           self.default_units["time"]**-2 *
+            #                           self.default_units["temperature"]**-1),
+            #    "heat_capacity_mole": (self.default_units["mass"] *
+            #                           self.default_units["length"]**2 *
+            #                           self.default_units["time"]**-2 *
+            #                           self.default_units["temperature"]**-1 *
+            #                           self.default_units["amount"]**-1),
+            #    "heat_transfer_coefficient":
+            #        (self.default_units["mass"] *
+            #         self.default_units["time"]**-3 *
+            #         self.default_units["temperature"]**-1),
+            #    "thermal_conductivity":
+            #        (self.default_units["mass"] *
+            #         self.default_units["length"] *
+            #         self.default_units["time"]**-3 *
+            #         self.default_units["temperature"]**-1),
+            #    "gas_constant": (self.default_units["mass"] *
+            #                     self.default_units["length"]**2 *
+            #                     self.default_units["time"]**-2 *
+            #                     self.default_units["temperature"]**-1 *
+            #                     self.default_units["amount"]**-1)}
+
             self._derived_units = {
                 "time": self.default_units["time"],
                 "length": self.default_units["length"],
@@ -327,7 +444,13 @@ class PropertyClassMetadata(object):
                                  self.default_units["time"]**-2 *
                                  self.default_units["temperature"]**-1 *
                                  self.default_units["amount"]**-1)}
+
+            # So I can check any units above I calculate with my algorithm
+            # above without losing units calculated by the default.
+            self._derived_units.update(units)
         except TypeError:
+            # What is this catching? E.g. None**2? None["mass"]?
+            # TypeError seems vague. -RBP
             raise PropertyPackageError(
                 "{} cannot determine derived units, as property package has "
                 "not defined a set of base units.".format(str(self)))
