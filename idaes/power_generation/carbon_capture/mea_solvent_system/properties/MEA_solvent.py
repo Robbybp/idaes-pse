@@ -61,11 +61,18 @@ _log = idaeslog.getLogger(__name__)
 # -----------------------------------------------------------------------------
 # Pure Component Property methods for aqueous MEA
 class CpMolCO2():
-    # No contribution form CO2, return 0*J/mol.K
+    # No contribution to enthalpy from CO2, but need to add a contribution
+    # to cp to avoid artificial decrease in as CO2 is absorbed.
+    # Assume cp contribution of CO2 is equal to weighted average of cp for
+    # solvents
     @staticmethod
-    def return_expression(*args, **kwargs):
-        # Need a very small number to avoid unit consistency probelms
-        return 1e-20*pyunits.J/pyunits.mol/pyunits.K
+    def return_expression(b, cobj, T):
+        return ((b.mole_frac_phase_comp["Liq", "H2O"] *
+                 b.cp_mol_phase_comp["Liq", "H2O"] +
+                 b.mole_frac_phase_comp["Liq", "MEA"] *
+                 b.cp_mol_phase_comp["Liq", "MEA"]) /
+                b.mole_frac_phase_comp["Liq", "CO2"] *
+                (1/(1-b.mass_frac_phase_comp["Liq", "CO2"])-1))
 
 
 class CpMolSolvent():
@@ -320,11 +327,11 @@ class DiffusCO2():
         set_param_from_config(cobj, param="diffus_phase_comp_coeff", index="3")
         cobj.diffus_phase_comp_coeff_4 = Var(
                 doc="Parameter 4 for liquid phase diffusivity model",
-                units=pyunits.dimensionless)
+                units=pyunits.K)
         set_param_from_config(cobj, param="diffus_phase_comp_coeff", index="4")
         cobj.diffus_phase_comp_coeff_5 = Var(
                 doc="Parameter 5 for liquid phase diffusivity model",
-                units=pyunits.K)
+                units=(pyunits.m**3)*pyunits.K/pyunits.kmol)
         set_param_from_config(cobj, param="diffus_phase_comp_coeff", index="5")
 
     @staticmethod
@@ -335,7 +342,7 @@ class DiffusCO2():
                  cobj.diffus_phase_comp_coeff_2*C_MEA +
                  cobj.diffus_phase_comp_coeff_3*C_MEA**2) *
                 exp((cobj.diffus_phase_comp_coeff_4 +
-                     cobj.diffus_phase_comp_coeff_5) / T))
+                     (cobj.diffus_phase_comp_coeff_5*C_MEA)) / T))
 
 
 class DiffusMEA():

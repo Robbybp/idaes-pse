@@ -28,7 +28,6 @@ from idaes.core.util import get_solver
 from idaes.generic_models.properties.core.generic.generic_property import (
         GenericParameterBlock)
 
-
 from idaes.power_generation.carbon_capture.mea_solvent_system.properties.MEA_solvent \
     import configuration
 
@@ -115,7 +114,7 @@ class TestStateBlock(object):
         assert pytest.approx(4479.97410, rel=1e-8) == value(
             model.props[1].conc_mol_phase_comp_apparent["Liq", "MEA"])
 
-        assert pytest.approx(86.3982342, rel=1e-8) == value(
+        assert pytest.approx(92.0060276, rel=1e-8) == value(
             model.props[1].cp_mol_phase["Liq"])
 
         assert pytest.approx(8842.75903, rel=1e-8) == value(
@@ -145,7 +144,7 @@ class TestStateBlock(object):
         assert pytest.approx(0.0533310121, rel=1e-8) == value(
             model.props[1].surf_tens_phase["Liq"])
 
-        assert pytest.approx(9.83334347e-09, rel=1e-8) == value(
+        assert pytest.approx(8.2258789e-9, rel=1e-8) == value(
             model.props[1].diffus_phase_comp_true["Liq", "CO2"])
         assert pytest.approx(4.47017415e-09, rel=1e-8) == value(
             model.props[1].diffus_phase_comp_true["Liq", "MEA"])

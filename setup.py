@@ -34,7 +34,7 @@ def rglob(path, glob):
 
 
 DEPENDENCIES_FOR_PRERELEASE_VERSION = [
-    "pyomo @ https://github.com/IDAES/pyomo/archive/6.1.2.idaes.2021.10.26.zip",
+    "pyomo @ https://github.com/IDAES/pyomo/archive/6.2.zip"
 ]
 
 
@@ -64,10 +64,11 @@ kwargs = dict(
         "nbformat",
         "numpy",
         "networkx",
+        "omlt==0.3", # fix the version for now as package evolves
         "pandas",
         "pint",
         "psutil",
-        "pyomo>=6.1.2",
+        "pyomo>=6.2",
         "pytest",
         "pyyaml",
         "requests",  # for ui/fsvis
@@ -86,6 +87,9 @@ kwargs = dict(
     # Only installed if [<key>] is added to package name
     extras_require={
         "prerelease": DEPENDENCIES_FOR_PRERELEASE_VERSION,
+        "optional": [
+            "tensorflow"  # idaes.surrogate.keras_surrogate
+        ]
     },
     package_data={
         # If any package contains these files, include them:
@@ -103,7 +107,9 @@ kwargs = dict(
             "*.css",
             "*.html",
             "*.json.gz",
-            "*.dat"
+            "*.dat",
+            "*.h5",
+            "*.trc",
         ]
     },
     include_package_data=True,
@@ -130,6 +136,8 @@ kwargs = dict(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Topic :: Scientific/Engineering :: Chemistry",
