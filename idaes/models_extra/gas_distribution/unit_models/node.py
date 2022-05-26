@@ -136,6 +136,16 @@ class PipelineNodeData(UnitModelBlockData):
         This is a copy of UnitModel.add_port, except it returns components
         instead of adding them to self.
         """
+        # What do I do here?
+        # - Create a port and populate with members of the state block
+        #   at t=0 (hard-coded time index makes me nervous)
+        # - Block is assumed to be indexed only by time... This makes
+        #   me ~very~ nervous.
+        # - Create references to port members by hard-coding the
+        #   one-dimensional slice, then accessing by name.
+        #   (Could just use slice_component_along_sets.)
+        # - Add references to the port (not model)
+        # - Return port and references (presumably so they can be added to model)
         # Validate block object
         if not isinstance(block, StateBlock):
             raise ConfigurationError(
@@ -207,10 +217,15 @@ class PipelineNodeData(UnitModelBlockData):
             # Each inlet/outlet needs its own state block so it can have its
             # own flow rate, at the very least.
             b.state = properties.build_state_block(time, default=state_config)
-            port, refs = self._get_port_and_references(port_name, b.state)
-            for ref_name, ref in refs:
-                b.add_component(ref_name, ref)
-            b.port = port
+            # With new API:
+            # b.state.build_port(b, ref_name, doc,
+            #   get_slice_for_set(b.state.index_set()),
+            # )
+            b.state.build_port(b, "port")
+            #port, refs = self._get_port_and_references(port_name, b.state)
+            #for ref_name, ref in refs:
+            #    b.add_component(ref_name, ref)
+            #b.port = port
             b.has_pipeline = False
 
             # Add equality constraints between the node states and inlet/outlet
