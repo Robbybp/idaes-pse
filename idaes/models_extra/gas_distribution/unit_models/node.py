@@ -221,11 +221,11 @@ class PipelineNodeData(UnitModelBlockData):
             # b.state.build_port(b, ref_name, doc,
             #   get_slice_for_set(b.state.index_set()),
             # )
-            b.state.build_port(b, "port")
+            port, name_ref_list = b.state.build_port(b, "port")
             #port, refs = self._get_port_and_references(port_name, b.state)
-            #for ref_name, ref in refs:
-            #    b.add_component(ref_name, ref)
-            #b.port = port
+            for ref_name, ref in name_ref_list:
+                b.add_component(ref_name, ref)
+            b.port = port
             b.has_pipeline = False
 
             # Add equality constraints between the node states and inlet/outlet

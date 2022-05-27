@@ -524,7 +524,7 @@ class StateBlock(ProcessBlock):
 
         # Create empty Port
         p = Port(doc=doc)
-        setattr(target_block, port_name, p)
+        #setattr(target_block, port_name, p)
 
         # Get dict of Port members and names
         # Need to get a representative member of StateBlockDatas
@@ -532,6 +532,7 @@ class StateBlock(ProcessBlock):
         member_list = self[i0].define_port_members()
 
         # Create References for port members
+        name_and_reference_list = []
         for s in member_list:
             if not member_list[s].is_indexed():
                 slicer = subset.component(member_list[s].local_name)
@@ -539,12 +540,14 @@ class StateBlock(ProcessBlock):
                 slicer = subset.component(member_list[s].local_name)[...]
 
             r = Reference(slicer)
-            setattr(target_block, "_" + s + "_" + port_name + "_ref", r)
+            #setattr(target_block, "_" + s + "_" + port_name + "_ref", r)
+            s_name = "_" + s + "_" + port_name + "_ref"
 
             # Add Reference to Port
             p.add(r, s)
+            name_and_reference_list.append((s_name, r))
 
-        return p
+        return p, name_and_reference_list
 
 
 class StateBlockData(ProcessBlockData):

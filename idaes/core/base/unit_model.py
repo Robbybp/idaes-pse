@@ -166,7 +166,10 @@ Must be True if dynamic = True,
         """
         # Create Port
         try:
-            p = block.build_port(self, name, doc)
+            p, name_ref_list = block.build_port(self, name, doc)
+            self.add_component(name, p)
+            for ref_name, ref in name_ref_list:
+                self.add_component(ref_name, ref)
         except AttributeError:
             raise ConfigurationError(
                 f"{self.name} block object provided to add_port method is not an "
