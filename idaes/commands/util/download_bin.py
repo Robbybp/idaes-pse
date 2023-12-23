@@ -174,7 +174,7 @@ def _create_download_package(platform, to_path, url, extra, extras_only, library
             continue
         _add_pack(e)  # you have to explicitly ask for extras so assume you want
     if not extras_only:
-        _add_pack("lib")
+        _add_pack("functions")
     if not library_only and not extras_only:
         _add_pack("solvers")
 
@@ -352,7 +352,7 @@ def download_binaries(
     if alt_path is not None:
         to_path = os.path.abspath(alt_path)
     if to_path is None:
-        to_path = idaes.bin_directory
+        to_path = idaes.data_directory
     else:
         to_path = os.path.join(idaes.data_directory, to_path)
     idaes._create_bin_dir(to_path)
