@@ -174,7 +174,7 @@ def _create_download_package(platform, to_path, url, extra, extras_only, library
             continue
         _add_pack(e)  # you have to explicitly ask for extras so assume you want
     if not extras_only:
-        _add_pack("lib")
+        _add_pack("functions")
     if not library_only and not extras_only:
         _add_pack("solvers")
 
