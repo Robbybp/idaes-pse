@@ -631,9 +631,9 @@ def get_data_directory():
     else:
         try:
             if os.name == "nt":  # Windows
-                data_directory = os.path.join(os.environ["LOCALAPPDATA"], "idaes")
+                data_directory = os.path.join(os.environ["LOCALAPPDATA"], "idaes-dev")
             else:  # any other OS
-                data_directory = os.path.join(os.environ["HOME"], ".idaes")
+                data_directory = os.path.join(os.environ["HOME"], ".idaes-dev")
         except AttributeError:
             data_directory = None
     if data_directory is None or not os.path.isdir(os.path.dirname(data_directory)):
