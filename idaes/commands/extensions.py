@@ -36,14 +36,14 @@ def print_extensions_version(library_only=False):
     click.echo("IDAES Extensions Build Versions")
     click.echo("===================================================")
     if not library_only:
-        v = os.path.join(idaes.bin_directory, "version_solvers.txt")
+        v = os.path.join(idaes.data_directory, "version_solvers.txt")
         try:
             with open(v, "r") as f:
                 v = f.readline().strip()
         except FileNotFoundError:
             v = "no version file found"
         click.echo("Solvers:  v{}".format(v))
-    v = os.path.join(idaes.bin_directory, "version_lib.txt")
+    v = os.path.join(idaes.data_directory, "version_lib.txt")
     try:
         with open(v, "r") as f:
             v = f.readline().strip()
