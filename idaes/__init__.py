@@ -54,6 +54,7 @@ _log = logging.getLogger(__name__)
 
 # Standard locations for config file, binary libraries and executables, ...
 data_directory, bin_directory, testing_directory = config.get_data_directory()
+lib_directory = os.path.join(data_directory, "lib")
 # To avoid a circular import the config module doesn't import idaes, but
 # some functions in the config module that are executed later use this
 # these directories are static from here on.
@@ -77,7 +78,9 @@ config.read_config(_global_config_file, cfg=cfg)
 config.read_config(_local_config_file, cfg=cfg)
 
 # Setup the environment so solver executables can be run
-config.setup_environment(bin_directory, cfg.use_idaes_solvers)
+config.setup_environment(
+    bin_directory, cfg.use_idaes_solvers, lib_directory=lib_directory
+)
 
 # Debug log for basic testing of the logging config
 _log.debug("'idaes' logger debug test")

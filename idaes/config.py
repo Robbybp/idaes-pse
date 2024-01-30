@@ -606,6 +606,8 @@ def reconfig(cfg):
         _log.addFilter(_WarningToExceptionFilter)
     else:
         _log.removeFilter(_WarningToExceptionFilter)
+    # NOTE that this is using the global bin_directory on the IDAES
+    # module???
     setup_environment(bin_directory, cfg.use_idaes_solvers)
 
 
@@ -656,7 +658,11 @@ def get_data_directory():
     return data_directory, bin_directory, testing_directory
 
 
-def setup_environment(bin_directory, use_idaes_solvers):
+def setup_environment(
+    bin_directory,
+    use_idaes_solvers,
+    lib_directory=None,
+):
     """
     Set environment variables for the IDAES session.
 
@@ -671,6 +677,9 @@ def setup_environment(bin_directory, use_idaes_solvers):
     """
     if bin_directory is None:
         return
+    if lib_directory is None:
+        # For backwards compatibility
+        lib_directory = bin_directory
     oe = orig_environ
     if use_idaes_solvers:
         os.environ["PATH"] = os.pathsep.join([bin_directory, oe.get("PATH", "")])
@@ -678,9 +687,9 @@ def setup_environment(bin_directory, use_idaes_solvers):
         os.environ["PATH"] = os.pathsep.join([oe.get("PATH", ""), bin_directory])
     if os.name != "nt":  # If not Windows set lib search path, Windows uses PATH
         os.environ["LD_LIBRARY_PATH"] = os.pathsep.join(
-            [oe.get("LD_LIBRARY_PATH", ""), bin_directory]
+            [oe.get("LD_LIBRARY_PATH", ""), lib_directory]
         )
         # This is for macOS, but won't hurt other UNIX
         os.environ["DYLD_LIBRARY_PATH"] = os.pathsep.join(
-            [oe.get("DYLD_LIBRARY_PATH", ""), bin_directory]
+            [oe.get("DYLD_LIBRARY_PATH", ""), lib_directory]
         )
