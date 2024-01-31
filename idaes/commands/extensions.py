@@ -99,8 +99,8 @@ def print_license():
     is_flag=True,
     help="Don't download anything, but report what would be done",
 )
-@click.option("--extra", multiple=True, help="Install extras")
-@click.option("--extras-only", is_flag=True, help="Only install extras")
+@click.option("--extra", multiple=True, help="This command has been removed.")
+@click.option("--extras-only", is_flag=True, help="This command has been removed.")
 @click.option("--to", default=None, help="Put extensions in a alternate location")
 @click.option("--verbose", help="Show details", is_flag=True)
 def get_extensions(
