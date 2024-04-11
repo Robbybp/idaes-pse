@@ -3619,7 +3619,8 @@ def ipopt_solve_halt_on_error(model, options=None):
     )
 
 
-def check_parallel_jacobian(model, tolerance: float = 1e-4, direction: str = "row"):
+from pyomo.common.timing import HierarchicalTimer
+def check_parallel_jacobian(model, tolerance: float = 1e-4, direction: str = "row", nlp=None, jac=None, timer=None):
     """
     Check for near-parallel rows or columns in the Jacobian.
 
@@ -3644,6 +3645,8 @@ def check_parallel_jacobian(model, tolerance: float = 1e-4, direction: str = "ro
     """
     # Thanks to Robby Parker for the sparse matrix implementation and
     # significant performance improvements
+    if timer is None:
+        timer = HierarchicalTimer()
 
     if direction not in ["row", "column"]:
         raise ValueError(
@@ -3651,7 +3654,10 @@ def check_parallel_jacobian(model, tolerance: float = 1e-4, direction: str = "ro
             "Must be 'row' or 'column'."
         )
 
-    jac, nlp = get_jacobian(model, scaled=False)
+    timer.start("get-jacobian")
+    if nlp is None or jac is None:
+        jac, nlp = get_jacobian(model, scaled=False)
+    timer.stop("get-jacobian")
 
     # Get vectors that we will check, and the Pyomo components
     # they correspond to.
@@ -3663,29 +3669,36 @@ def check_parallel_jacobian(model, tolerance: float = 1e-4, direction: str = "ro
         components = nlp.get_pyomo_variables()
         mat = jac.transpose().tocsr()
 
+    timer.start("norms")
     norms = [norm(mat[i, :], ord="fro") for i in range(len(components))]
+    timer.stop("norms")
 
     # Take product of all rows/columns with all rows/columns by taking outer
     # product of matrix with itself
+    timer.start("matmul")
     outer = mat @ mat.transpose()
+    timer.stop("matmul")
     # Get rid of duplicate values by only taking upper triangular part of
     # resulting matrix
     upper_tri = triu(outer)
     # List to store pairs of parallel components
     parallel = []
 
-    for row, col, val in zip(*find(upper_tri), strict=True):
+    timer.start("check-dotprods")
+    #for row, col, val in zip(*find(upper_tri), strict=True):
+    for row, col, val in zip(upper_tri.row, upper_tri.col, upper_tri.data):
         if row == col:
             # A vector is parallel to itself
             continue
         diff = abs(abs(val) - norms[row] * norms[col])
         if diff <= tolerance or diff <= tolerance * max(norms[row], norms[col]):
             parallel.append((components[row], components[col]))
+    timer.stop("check-dotprods")
 
     return parallel
 
 
-def check_parallel_jacobian_old(model, tolerance: float = 1e-4, direction: str = "row"):
+def check_parallel_jacobian_old(model, tolerance: float = 1e-4, direction: str = "row", nlp=None, jac=None, timer=None):
     """
     Check for near-parallel rows or columns in the Jacobian.
 
@@ -3710,6 +3723,8 @@ def check_parallel_jacobian_old(model, tolerance: float = 1e-4, direction: str =
     """
     # Thanks to Robby Parker for the sparse matrix implementation and
     # significant performance improvements
+    if timer is None:
+        timer = HierarchicalTimer()
 
     if direction not in ["row", "column"]:
         raise ValueError(
@@ -3717,25 +3732,39 @@ def check_parallel_jacobian_old(model, tolerance: float = 1e-4, direction: str =
             "Must be 'row' or 'column'."
         )
 
-    jac, nlp = get_jacobian(model, scaled=False)
+    timer.start("get-jacobian")
+    if nlp is None or jac is None:
+        jac, nlp = get_jacobian(model, scaled=False)
+    timer.stop("get-jacobian")
 
     # Get vectors that we will check, and the Pyomo components
     # they correspond to.
+    timer.start("vectors")
     if direction == "row":
         components = nlp.get_pyomo_constraints()
         csrjac = jac.tocsr()
         # Make everything a column vector (CSC) for consistency
-        vectors = [csrjac[i, :].transpose().tocsc() for i in range(len(components))]
+        #vectors = [csrjac[i, :].transpose().tocsc() for i in range(len(components))]
+        #vectors = [csrjac[i, :] for i in range(len(components))]
+        #cscjac = jac.tocsc()
+        #vectors = [cscjac[i,:] for i in range(len(components))]
     elif direction == "column":
         components = nlp.get_pyomo_variables()
         cscjac = jac.tocsc()
-        vectors = [cscjac[:, i] for i in range(len(components))]
+        #vectors = [cscjac[:, i] for i in range(len(components))]
+    timer.stop("vectors")
 
     # List to store pairs of parallel components
     parallel = []
 
+    timer.start("sort-by-nz")
     vectors_by_nz = {}
-    for vecidx, vec in enumerate(vectors):
+    #for vecidx, vec in enumerate(vectors):
+    for vecidx in range(len(components)):
+        if direction == "row":
+            vec = csrjac[vecidx, :]
+        else:
+            vec = cscjac[:, vecidx]
         maxval = max(np.abs(vec.data))
         # Construct tuple of sorted col/row indices that participate
         # in this vector (with non-negligible coefficient).
@@ -3752,21 +3781,34 @@ def check_parallel_jacobian_old(model, tolerance: float = 1e-4, direction: str =
             vectors_by_nz[nz].append((vec, vecidx))
         else:
             vectors_by_nz[nz] = [(vec, vecidx)]
+    timer.stop("sort-by-nz")
 
     for vecs in vectors_by_nz.values():
         for idx, (u, uidx) in enumerate(vecs):
             # idx is the "local index", uidx is the "global index"
             # Frobenius norm of the matrix is 2-norm of this column vector
+            timer.start("norm")
             unorm = norm(u, ord="fro")
+            timer.stop("norm")
             for v, vidx in vecs[idx + 1 :]:
+                timer.start("norm")
                 vnorm = norm(v, ord="fro")
+                timer.stop("norm")
 
                 # Explicitly multiply a row vector * column vector
-                prod = u.transpose().dot(v)
+                timer.start("dotprod")
+                if direction == "row":
+                    prod = u.dot(v.transpose())
+                else:
+                    prd = u.transpose().dot(v)
+                timer.stop("dotprod")
+
+                timer.start("check-diff")
                 absprod = abs(prod[0, 0])
                 diff = abs(absprod - unorm * vnorm)
                 if diff <= tolerance or diff <= tolerance * max(unorm, vnorm):
                     parallel.append((uidx, vidx))
+                timer.stop("check-diff")
 
     parallel = [(components[uidx], components[vidx]) for uidx, vidx in parallel]
     return parallel
